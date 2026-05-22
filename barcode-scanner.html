@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>EAN Scanner</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --panel: #1a1a26;
+    --border: #2a2a3d;
+    --accent: #00e5ff;
+    --accent2: #7c3aed;
+    --ok: #00ff88;
+    --warn: #ff3864;
+    --text: #e8e8f0;
+    --muted: #6b6b88;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Header */
+  .header {
+    padding: 16px 20px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  .header h1 {
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  .header .sub { font-size: 10px; color: var(--muted); font-family: 'JetBrains Mono', monospace; margin-top: 1px; }
+
+  /* Prefix config */
+  .config-bar {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .config-bar label {
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--muted);
+    white-space: nowrap;
+    text-transform: uppercase;
+  }
+  .config-bar input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    outline: none;
+    width: 0;
+    transition: border-color 0.2s;
+  }
+  .config-bar input:focus { border-color: var(--accent2); }
+  .len-badge {
+    background: var(--border);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  /* Viewfinder */
+  .scanner-wrap {
+    position: relative;
+    flex: 1;
+    overflow: hidden;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #interactive {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    inset: 0;
+  }
+  #interactive video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  #interactive canvas { display: none; }
+
+  /* Overlay frame */
+  .overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .scan-zone {
+    position: relative;
+    width: min(85vw, 340px);
+    height: 120px;
+  }
+  .scan-zone::before, .scan-zone::after,
+  .sz-bl, .sz-br {
+    content: '';
+    position: absolute;
+    width: 28px;
+    height: 28px;
+    border-color: var(--accent);
+    border-style: solid;
+  }
+  .scan-zone::before { top: 0; left: 0; border-width: 3px 0 0 3px; }
+  .scan-zone::after  { top: 0; right: 0; border-width: 3px 3px 0 0; }
+  .sz-bl { bottom: 0; left: 0; border-width: 0 0 3px 3px; }
+  .sz-br { bottom: 0; right: 0; border-width: 0 3px 3px 0; }
+
+  .scan-line {
+    position: absolute;
+    left: 4px; right: 4px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    top: 0;
+    animation: scanline 2s ease-in-out infinite;
+    box-shadow: 0 0 8px var(--accent);
+  }
+  @keyframes scanline {
+    0%   { top: 8px; opacity: 0; }
+    10%  { opacity: 1; }
+    90%  { opacity: 1; }
+    100% { top: calc(100% - 8px); opacity: 0; }
+  }
+
+  .scan-hint {
+    position: absolute;
+    bottom: -28px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    color: rgba(255,255,255,0.45);
+    white-space: nowrap;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* Idle placeholder */
+  .idle-screen {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    background: var(--surface);
+  }
+  .idle-icon {
+    width: 72px; height: 72px;
+    border: 3px solid var(--border);
+    border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .idle-icon svg { opacity: 0.4; }
+  .idle-screen p { color: var(--muted); font-size: 13px; }
+
+  /* Start button */
+  .btn-start {
+    background: var(--accent2);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 28px;
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: background 0.2s, transform 0.1s;
+  }
+  .btn-start:active { transform: scale(0.96); }
+
+  /* Result panel */
+  .result-panel {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 14px 16px;
+    flex-shrink: 0;
+    min-height: 130px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: border-color 0.3s;
+  }
+  .result-panel.ok   { border-top-color: var(--ok); }
+  .result-panel.fail { border-top-color: var(--warn); }
+
+  .result-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .result-label {
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .status-badge {
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.06em;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .status-badge.visible { opacity: 1; }
+  .status-badge.ok   { background: rgba(0,255,136,0.15); color: var(--ok); border: 1px solid rgba(0,255,136,0.3); }
+  .status-badge.fail { background: rgba(255,56,100,0.15); color: var(--warn); border: 1px solid rgba(255,56,100,0.3); }
+
+  .barcode-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: var(--text);
+    word-break: break-all;
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 2px;
+  }
+  .barcode-value .prefix { color: var(--accent); }
+  .barcode-value .rest   { color: var(--muted); }
+  .barcode-value .prefix.bad { color: var(--warn); }
+
+  .result-meta {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .meta-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .meta-item .k { font-size: 9px; color: var(--muted); font-family: 'JetBrains Mono', monospace; text-transform: uppercase; }
+  .meta-item .v { font-size: 12px; font-family: 'JetBrains Mono', monospace; color: var(--text); }
+
+  /* Alert overlay */
+  .alert-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    display: flex;
+    align-items: flex-end;
+    padding: 24px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .alert-overlay.show { opacity: 1; pointer-events: all; }
+
+  .alert-box {
+    width: 100%;
+    background: #1a0a0f;
+    border: 1.5px solid var(--warn);
+    border-radius: 14px;
+    padding: 18px 20px;
+    box-shadow: 0 0 40px rgba(255,56,100,0.25);
+    transform: translateY(20px);
+    transition: transform 0.3s;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .alert-overlay.show .alert-box { transform: translateY(0); }
+  .alert-box .alert-title {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--warn);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-transform: uppercase;
+  }
+  .alert-box .alert-body {
+    font-size: 13px;
+    color: rgba(255,255,255,0.7);
+    font-family: 'JetBrains Mono', monospace;
+    line-height: 1.6;
+  }
+  .alert-box .alert-body span { color: var(--warn); font-weight: 700; }
+  .alert-dismiss {
+    align-self: flex-end;
+    background: var(--warn);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 20px;
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    pointer-events: all;
+    letter-spacing: 0.04em;
+  }
+
+  /* Bottom controls */
+  .controls {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 10px 16px 14px;
+    display: flex;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .btn {
+    flex: 1;
+    border-radius: 10px;
+    padding: 10px;
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    text-transform: uppercase;
+    transition: all 0.15s;
+  }
+  .btn:active { transform: scale(0.96); }
+  .btn-scan { background: var(--accent2); color: #fff; border-color: var(--accent2); }
+  .btn-stop  { background: transparent; color: var(--muted); }
+  .btn-clear { background: transparent; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>EAN Scanner</h1>
+    <div class="sub">Barcode Prefix Validator</div>
+  </div>
+  <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+    <rect x="2" y="6" width="3" height="20" rx="1" fill="#00e5ff"/>
+    <rect x="7" y="6" width="1.5" height="20" rx="0.5" fill="#00e5ff" opacity=".7"/>
+    <rect x="10" y="6" width="2.5" height="20" rx="1" fill="#00e5ff"/>
+    <rect x="14.5" y="6" width="1" height="20" rx="0.5" fill="#00e5ff" opacity=".5"/>
+    <rect x="17" y="6" width="3" height="20" rx="1" fill="#00e5ff"/>
+    <rect x="22" y="6" width="1.5" height="20" rx="0.5" fill="#00e5ff" opacity=".7"/>
+    <rect x="25" y="6" width="2.5" height="20" rx="1" fill="#00e5ff"/>
+  </svg>
+</div>
+
+<div class="config-bar">
+  <label>PREFIX</label>
+  <input type="text" id="prefixInput" maxlength="13" placeholder="e.g. 501234567" value="501234567" inputmode="numeric">
+  <div class="len-badge" id="lenBadge">9 chars</div>
+</div>
+
+<div class="scanner-wrap" id="scannerWrap">
+  <!-- Quagga mounts here -->
+  <div id="interactive" class="viewport"></div>
+
+  <!-- Corner overlay -->
+  <div class="overlay" id="overlayFrame" style="display:none">
+    <div class="scan-zone">
+      <div class="sz-bl"></div>
+      <div class="sz-br"></div>
+      <div class="scan-line"></div>
+      <div class="scan-hint">Align barcode within frame</div>
+    </div>
+  </div>
+
+  <!-- Idle -->
+  <div class="idle-screen" id="idleScreen">
+    <div class="idle-icon">
+      <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+        <rect x="4" y="8" width="4" height="20" rx="2" fill="#e8e8f0"/>
+        <rect x="10" y="8" width="2" height="20" rx="1" fill="#e8e8f0"/>
+        <rect x="14" y="8" width="3" height="20" rx="1.5" fill="#e8e8f0"/>
+        <rect x="19" y="8" width="2" height="20" rx="1" fill="#e8e8f0"/>
+        <rect x="23" y="8" width="4" height="20" rx="2" fill="#e8e8f0"/>
+        <rect x="29" y="8" width="3" height="20" rx="1.5" fill="#e8e8f0"/>
+      </svg>
+    </div>
+    <p>Camera not active</p>
+    <button class="btn-start" onclick="startScanner()">Start Camera</button>
+  </div>
+</div>
+
+<div class="result-panel" id="resultPanel">
+  <div class="result-header">
+    <div class="result-label">Last Scan</div>
+    <div class="status-badge" id="statusBadge">—</div>
+  </div>
+  <div class="barcode-value" id="barcodeValue"><span style="color:var(--muted);font-size:13px">No barcode scanned yet</span></div>
+  <div class="result-meta" id="resultMeta" style="display:none">
+    <div class="meta-item"><div class="k">Format</div><div class="v" id="metaFormat">—</div></div>
+    <div class="meta-item"><div class="k">Prefix Match</div><div class="v" id="metaPrefix">—</div></div>
+    <div class="meta-item"><div class="k">Time</div><div class="v" id="metaTime">—</div></div>
+  </div>
+</div>
+
+<div class="controls">
+  <button class="btn btn-scan" id="btnScan" onclick="startScanner()">Start</button>
+  <button class="btn btn-stop" id="btnStop" onclick="stopScanner()" style="display:none">Stop</button>
+  <button class="btn btn-clear" onclick="clearResult()">Clear</button>
+</div>
+
+<!-- Alert -->
+<div class="alert-overlay" id="alertOverlay">
+  <div class="alert-box">
+    <div class="alert-title">⚠ Prefix Mismatch</div>
+    <div class="alert-body" id="alertBody"></div>
+    <button class="alert-dismiss" onclick="dismissAlert()">Dismiss</button>
+  </div>
+</div>
+
+<script>
+let scanning = false;
+let lastCode = null;
+let alertTimeout = null;
+
+const prefixInput = document.getElementById('prefixInput');
+const lenBadge    = document.getElementById('lenBadge');
+const barcodeVal  = document.getElementById('barcodeValue');
+const statusBadge = document.getElementById('statusBadge');
+const resultPanel = document.getElementById('resultPanel');
+const resultMeta  = document.getElementById('resultMeta');
+const metaFormat  = document.getElementById('metaFormat');
+const metaPrefix  = document.getElementById('metaPrefix');
+const metaTime    = document.getElementById('metaTime');
+const idleScreen  = document.getElementById('idleScreen');
+const overlayFrame= document.getElementById('overlayFrame');
+const alertOverlay= document.getElementById('alertOverlay');
+const alertBody   = document.getElementById('alertBody');
+const btnScan     = document.getElementById('btnScan');
+const btnStop     = document.getElementById('btnStop');
+
+prefixInput.addEventListener('input', () => {
+  const v = prefixInput.value.replace(/\D/g, '');
+  prefixInput.value = v;
+  lenBadge.textContent = v.length + ' char' + (v.length !== 1 ? 's' : '');
+  lastCode = null; // reset so next scan re-evaluates
+});
+lenBadge.textContent = prefixInput.value.length + ' chars';
+
+function getPrefix() { return prefixInput.value.trim(); }
+
+function startScanner() {
+  if (scanning) return;
+
+  Quagga.init({
+    inputStream: {
+      name: 'Live',
+      type: 'LiveStream',
+      target: document.querySelector('#interactive'),
+      constraints: {
+        facingMode: 'environment',
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      }
+    },
+    decoder: {
+      readers: ['ean_reader', 'ean_8_reader', 'upc_reader', 'upc_e_reader', 'code_128_reader']
+    },
+    locate: true,
+    frequency: 10
+  }, function(err) {
+    if (err) {
+      alert('Camera error: ' + err.message + '\n\nMake sure you allow camera access and are using HTTPS.');
+      return;
+    }
+    Quagga.start();
+    scanning = true;
+    idleScreen.style.display  = 'none';
+    overlayFrame.style.display = 'flex';
+    btnScan.style.display = 'none';
+    btnStop.style.display = '';
+  });
+
+  Quagga.onDetected(onDetected);
+}
+
+function stopScanner() {
+  if (!scanning) return;
+  Quagga.offDetected(onDetected);
+  Quagga.stop();
+  scanning = false;
+  idleScreen.style.display  = 'flex';
+  overlayFrame.style.display = 'none';
+  btnScan.style.display = '';
+  btnStop.style.display = 'none';
+}
+
+function onDetected(data) {
+  const code   = data.codeResult.code;
+  const format = data.codeResult.format;
+  if (!code) return;
+  if (code === lastCode) return; // debounce same barcode
+
+  lastCode = code;
+
+  const prefix     = getPrefix();
+  const first10    = code.substring(0, 10);
+  const codePrefix = code.substring(0, prefix.length);
+  const isMatch    = prefix.length === 0 || codePrefix === prefix;
+
+  // Vibrate on detection
+  if (navigator.vibrate) navigator.vibrate(isMatch ? [60] : [80, 40, 80]);
+
+  // Update result panel
+  resultPanel.className = 'result-panel ' + (isMatch ? 'ok' : 'fail');
+  statusBadge.className = 'status-badge visible ' + (isMatch ? 'ok' : 'fail');
+  statusBadge.textContent = isMatch ? '✓ MATCH' : '✗ MISMATCH';
+
+  // Render barcode digits colored
+  if (prefix.length > 0) {
+    const prefixPart = code.substring(0, prefix.length);
+    const restPart   = code.substring(prefix.length);
+    barcodeVal.innerHTML =
+      `<span class="prefix ${isMatch ? '' : 'bad'}">${prefixPart}</span>` +
+      `<span class="rest">${restPart}</span>`;
+  } else {
+    barcodeVal.textContent = code;
+  }
+
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  metaFormat.textContent  = format.toUpperCase().replace('_', '-');
+  metaPrefix.textContent  = isMatch ? 'YES' : 'NO — got ' + codePrefix;
+  metaTime.textContent    = timeStr;
+  resultMeta.style.display = 'flex';
+
+  // Show mismatch alert
+  if (!isMatch) {
+    showAlert(code, codePrefix, prefix, first10);
+  }
+}
+
+function showAlert(code, got, expected, first10) {
+  alertBody.innerHTML =
+    `Scanned: <span>${code}</span><br>` +
+    `Expected prefix: <span>${expected}</span><br>` +
+    `Got prefix: <span>${got}</span><br>` +
+    `First 10 digits: <span>${first10}</span>`;
+  alertOverlay.classList.add('show');
+  clearTimeout(alertTimeout);
+  alertTimeout = setTimeout(dismissAlert, 7000);
+}
+
+function dismissAlert() {
+  alertOverlay.classList.remove('show');
+  clearTimeout(alertTimeout);
+}
+
+function clearResult() {
+  lastCode = null;
+  resultPanel.className = 'result-panel';
+  statusBadge.className = 'status-badge';
+  statusBadge.textContent = '—';
+  barcodeVal.innerHTML = '<span style="color:var(--muted);font-size:13px">No barcode scanned yet</span>';
+  resultMeta.style.display = 'none';
+  dismissAlert();
+}
+</script>
+</body>
+</html>
