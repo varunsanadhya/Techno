@@ -692,7 +692,8 @@ let scanning = false;
 let lastCode = null;
 let dangerTimeout = null;
 let currentCarton = null;
-let scannedSet = new Set();   // barcodes confirmed OK in this session
+let scannedSet = new Set();        // barcodes confirmed OK in this session
+let detectionCounts = {};          // code -> consecutive hit count (false-positive filter)
 
 function populateCartonSelect() {
   const sel = document.getElementById('cartonSelect');
@@ -716,6 +717,7 @@ function onCartonChange() {
   currentCarton = cartons.find(c => c.id === id) || null;
   scannedSet.clear();
   lastCode = null;
+  detectionCounts = {};
   stopScanner();
   resetScanState();
   renderChips();
@@ -840,10 +842,20 @@ function startScanner() {
     inputStream: {
       name: 'Live', type: 'LiveStream',
       target: document.querySelector('#interactive'),
-      constraints: { facingMode:'environment', width:{ideal:1280}, height:{ideal:720} }
+      constraints: { facingMode:'environment', width:{ideal:1280}, height:{ideal:720} },
+      area: { top:'30%', right:'20%', bottom:'30%', left:'20%' }
     },
-    decoder: { readers:['ean_reader','ean_8_reader','upc_reader','upc_e_reader','code_128_reader'] },
-    locate: true, frequency: 10
+    decoder: {
+      readers: [
+        { format:'ean_reader',     config:{ supplements:[] } },
+        { format:'ean_8_reader',   config:{ supplements:[] } },
+        { format:'upc_reader',     config:{ supplements:[] } },
+        { format:'upc_e_reader',   config:{ supplements:[] } },
+        { format:'code_128_reader',config:{} }
+      ]
+    },
+    locate: true,
+    frequency: 5
   }, err => {
     if (err) { alert('Camera error: ' + err.message + '\n\nEnsure camera permission is granted and you are on HTTPS.'); return; }
     Quagga.start();
@@ -868,21 +880,33 @@ function stopScanner() {
   document.getElementById('btnStop').style.display = 'none';
 }
 
+const CONFIRM_HITS = 3;   // consecutive detections required before accepting a scan
+
 function onDetected(data) {
   const code = data.codeResult.code;
   if (!code) return;
   if (!currentCarton) return;
 
+  // ── ALREADY SCANNED: silently ignore ──
+  if (scannedSet.has(code)) return;
+
+  // ── DEBOUNCE: within the 3-second lockout window after a confirmed scan ──
+  if (code === lastCode) return;
+
+  // ── CONSECUTIVE-HIT FILTER: require CONFIRM_HITS reads in a row ──
+  // Any different code seen resets all counts (avoids accumulating noise)
+  const prev = Object.keys(detectionCounts)[0];
+  if (prev && prev !== code) detectionCounts = {};
+
+  detectionCounts[code] = (detectionCounts[code] || 0) + 1;
+  if (detectionCounts[code] < CONFIRM_HITS) return;   // not confirmed yet
+  detectionCounts = {};   // reset after confirmed
+
+  // ── CONFIRMED ──
+  lastCode = code;
+
   const validCodes = currentCarton.barcodes.map(b=>b.trim()).filter(Boolean);
   const isValid    = validCodes.includes(code);
-  const alreadyDone = scannedSet.has(code);
-
-  // ── ALREADY SCANNED VALID barcode: silently ignore, no sound, no message ──
-  if (alreadyDone) return;
-
-  // ── DEBOUNCE: same code seen in quick succession (invalid repeat) ──
-  if (code === lastCode) return;
-  lastCode = code;
 
   // vibrate
   if (navigator.vibrate) navigator.vibrate(isValid ? [60] : [80,40,80,40,80]);
@@ -894,7 +918,7 @@ function onDetected(data) {
 
   panel.className   = 'result-panel ' + (isValid ? 'ok' : 'fail');
   badge.className   = 'status-badge visible ' + (isValid ? 'ok' : 'fail');
-  badge.textContent = isValid ? '✓ VALID' : '✗ UNKNOWN';
+  badge.textContent = isValid ? '\u2713 VALID' : '\u2717 UNKNOWN';
   bval.innerHTML    = `<span style="color:${isValid ? 'var(--ok)' : 'var(--warn)'}">${code}</span>`;
 
   if (isValid) {
@@ -905,8 +929,7 @@ function onDetected(data) {
   } else {
     playDanger();
     showDanger(code, validCodes);
-    // lastCode resets when danger is dismissed (via dismissDanger), allowing the user
-    // to try again after fixing the wrong item
+    // lastCode resets on dismissDanger so user can retry after removing wrong item
   }
 }
 
@@ -930,6 +953,7 @@ function dismissDanger() {
 function resetScanState() {
   scannedSet.clear();
   lastCode = null;
+  detectionCounts = {};
   document.getElementById('resultPanel').className = 'result-panel';
   document.getElementById('statusBadge').className = 'status-badge';
   document.getElementById('barcodeValue').innerHTML = '<span style="color:var(--muted);font-size:13px">Awaiting scan…</span>';
