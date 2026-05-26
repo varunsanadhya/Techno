@@ -754,52 +754,79 @@ function markChip(barcode, ok) {
 }
 
 /* ═══════════════════════════════════════
-   SOUND ENGINE (Web Audio API — no files needed)
+   SOUND ENGINE (Web Audio API)
+   - Single shared AudioContext, unlocked on first user tap
+   - resume() called before every sound to handle auto-suspend
 ═══════════════════════════════════════ */
 let audioCtx = null;
+
 function getAudio() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
   return audioCtx;
 }
 
-function playBeep() {
+// Unlock AudioContext on the very first user interaction (required by browsers)
+function unlockAudio() {
   try {
     const ctx = getAudio();
-    const osc = ctx.createOscillator();
+    if (ctx.state === 'suspended') ctx.resume();
+    // Play a silent buffer to fully unlock on iOS
+    const buf = ctx.createBuffer(1, 1, 22050);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    src.start(0);
+  } catch(e) {}
+}
+document.addEventListener('touchstart', unlockAudio, { once: true });
+document.addEventListener('click',      unlockAudio, { once: true });
+
+async function playBeep() {
+  try {
+    const ctx = getAudio();
+    if (ctx.state === 'suspended') await ctx.resume();
+    const osc  = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain); gain.connect(ctx.destination);
     osc.type = 'sine';
     osc.frequency.setValueAtTime(880, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(1100, ctx.currentTime + 0.05);
-    gain.gain.setValueAtTime(0.4, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+    osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.06);
+    gain.gain.setValueAtTime(0.5, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.22);
     osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.2);
-  } catch(e) {}
+    osc.stop(ctx.currentTime + 0.25);
+  } catch(e) { console.warn('playBeep:', e); }
 }
 
-function playDanger() {
+async function playDanger() {
   try {
     const ctx = getAudio();
-    // Three descending harsh tones
-    [0, 0.18, 0.36].forEach((t, i) => {
+    if (ctx.state === 'suspended') await ctx.resume();
+    // Three descending harsh tones with distortion
+    const freqs = [520, 420, 320];
+    const times = [0, 0.22, 0.44];
+    freqs.forEach((freq, i) => {
       const osc  = ctx.createOscillator();
       const gain = ctx.createGain();
       const dist = ctx.createWaveShaper();
-      // slight distortion for alarm feel
-      const curve = new Float32Array(256);
-      for (let k=0;k<256;k++) { const x=k*2/256-1; curve[k]=Math.sign(x)*Math.pow(Math.abs(x),.5); }
+      const curve = new Float32Array(512);
+      for (let k = 0; k < 512; k++) {
+        const x = (k * 2) / 512 - 1;
+        curve[k] = Math.sign(x) * Math.pow(Math.abs(x), 0.4);
+      }
       dist.curve = curve;
       osc.connect(dist); dist.connect(gain); gain.connect(ctx.destination);
       osc.type = 'sawtooth';
-      const freq = [440, 370, 300][i];
-      osc.frequency.setValueAtTime(freq, ctx.currentTime + t);
-      gain.gain.setValueAtTime(0.35, ctx.currentTime + t);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.15);
-      osc.start(ctx.currentTime + t);
-      osc.stop(ctx.currentTime + t + 0.16);
+      const t = ctx.currentTime + times[i];
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(0.45, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+      osc.start(t);
+      osc.stop(t + 0.2);
     });
-  } catch(e) {}
+  } catch(e) { console.warn('playDanger:', e); }
 }
 
 /* ═══════════════════════════════════════
@@ -844,36 +871,42 @@ function stopScanner() {
 function onDetected(data) {
   const code = data.codeResult.code;
   if (!code) return;
-  if (code === lastCode) return;  // debounce
-
-  lastCode = code;
-
   if (!currentCarton) return;
+
   const validCodes = currentCarton.barcodes.map(b=>b.trim()).filter(Boolean);
-  const isValid = validCodes.includes(code);
+  const isValid    = validCodes.includes(code);
+  const alreadyDone = scannedSet.has(code);
+
+  // ── ALREADY SCANNED VALID barcode: silently ignore, no sound, no message ──
+  if (alreadyDone) return;
+
+  // ── DEBOUNCE: same code seen in quick succession (invalid repeat) ──
+  if (code === lastCode) return;
+  lastCode = code;
 
   // vibrate
   if (navigator.vibrate) navigator.vibrate(isValid ? [60] : [80,40,80,40,80]);
 
   // update result panel
-  const panel  = document.getElementById('resultPanel');
-  const badge  = document.getElementById('statusBadge');
-  const bval   = document.getElementById('barcodeValue');
+  const panel = document.getElementById('resultPanel');
+  const badge = document.getElementById('statusBadge');
+  const bval  = document.getElementById('barcodeValue');
 
-  panel.className = 'result-panel ' + (isValid ? 'ok' : 'fail');
-  badge.className = 'status-badge visible ' + (isValid ? 'ok' : 'fail');
+  panel.className   = 'result-panel ' + (isValid ? 'ok' : 'fail');
+  badge.className   = 'status-badge visible ' + (isValid ? 'ok' : 'fail');
   badge.textContent = isValid ? '✓ VALID' : '✗ UNKNOWN';
-  bval.innerHTML = `<span style="color:${isValid ? 'var(--ok)' : 'var(--warn)'}">${code}</span>`;
+  bval.innerHTML    = `<span style="color:${isValid ? 'var(--ok)' : 'var(--warn)'}">${code}</span>`;
 
   if (isValid) {
     playBeep();
     scannedSet.add(code);
     markChip(code, true);
-    // clear lastCode after short delay so same barcode can be rescanned if needed
-    setTimeout(() => { lastCode = null; }, 1500);
+    setTimeout(() => { lastCode = null; }, 3000);
   } else {
     playDanger();
     showDanger(code, validCodes);
+    // lastCode resets when danger is dismissed (via dismissDanger), allowing the user
+    // to try again after fixing the wrong item
   }
 }
 
@@ -891,7 +924,7 @@ function showDanger(code, validCodes) {
 function dismissDanger() {
   document.getElementById('dangerOverlay').classList.remove('show');
   clearTimeout(dangerTimeout);
-  lastCode = null;  // allow re-scan after dismissing
+  lastCode = null;  // allow the wrong barcode to be re-evaluated if presented again
 }
 
 function resetScanState() {
