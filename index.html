@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>ATTPL Scan</title>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>ATTPL Scan v1</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;700;800&display=swap');
@@ -22,420 +23,164 @@
   --text: #e2e8f4;
   --muted: #556070;
   --muted2: #3a4555;
+  --bt: #3b82f6;
 }
 
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 html, body { height:100%; overflow:hidden; }
+body { background:var(--bg); color:var(--text); font-family:'Syne',sans-serif; height:100dvh; display:flex; flex-direction:column; }
 
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'Syne', sans-serif;
-  height: 100dvh;
-  display: flex;
-  flex-direction: column;
-}
-
-/* ── PAGES ── */
 .page { display:none; flex-direction:column; height:100%; overflow:hidden; }
 .page.active { display:flex; }
 
-/* ── HEADER ── */
-.hdr {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  padding: 14px 16px 12px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-shrink: 0;
-}
-.hdr-back {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  width: 34px; height: 34px;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; color: var(--text); font-size: 16px;
-  flex-shrink: 0;
-}
-.hdr-title { flex: 1; }
-.hdr-title h1 { font-size: 17px; font-weight: 800; color: var(--accent); letter-spacing:.03em; text-transform:uppercase; }
-.hdr-title p  { font-size: 10px; color: var(--muted); font-family:'JetBrains Mono',monospace; margin-top:1px; }
+/* HEADER */
+.hdr { background:var(--surface); border-bottom:1px solid var(--border); padding:12px 16px 10px; display:flex; align-items:center; gap:12px; flex-shrink:0; }
+.hdr-back { background:var(--card); border:1px solid var(--border); border-radius:8px; width:34px; height:34px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text); font-size:16px; flex-shrink:0; }
+.hdr-title { flex:1; }
+.hdr-title h1 { font-size:16px; font-weight:800; color:var(--accent); letter-spacing:.03em; text-transform:uppercase; }
+.hdr-title p  { font-size:10px; color:var(--muted); font-family:'JetBrains Mono',monospace; margin-top:1px; }
+.hdr-ver { font-size:9px; font-family:'JetBrains Mono',monospace; color:var(--muted2); background:var(--card); border:1px solid var(--border); border-radius:4px; padding:2px 6px; flex-shrink:0; }
 
-/* ── MASTER PAGE ── */
-.master-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
+/* MASTER PAGE */
+.master-body { flex:1; overflow-y:auto; padding:14px; display:flex; flex-direction:column; gap:12px; }
+.section-label { font-size:10px; font-family:'JetBrains Mono',monospace; color:var(--muted); text-transform:uppercase; letter-spacing:.1em; margin-bottom:6px; }
 
-.section-label {
-  font-size: 10px;
-  font-family: 'JetBrains Mono', monospace;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: .1em;
-  margin-bottom: 6px;
-}
+/* BT status bar on master */
+.bt-bar { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:10px 14px; display:flex; align-items:center; gap:10px; }
+.bt-dot { width:8px; height:8px; border-radius:50%; background:var(--muted2); flex-shrink:0; transition:background .3s; }
+.bt-dot.connected { background:var(--bt); box-shadow:0 0 6px var(--bt); }
+.bt-dot.scanning-bt { background:var(--amber); animation:pulse-dot .7s ease infinite alternate; }
+@keyframes pulse-dot { from{opacity:1} to{opacity:.3} }
+.bt-info { flex:1; }
+.bt-info .bt-title { font-size:12px; font-weight:700; color:var(--text); }
+.bt-info .bt-sub   { font-size:10px; font-family:'JetBrains Mono',monospace; color:var(--muted); margin-top:1px; }
+.bt-btn { background:var(--bt); color:#fff; border:none; border-radius:8px; padding:6px 14px; font-family:'Syne',sans-serif; font-size:11px; font-weight:700; cursor:pointer; text-transform:uppercase; letter-spacing:.04em; white-space:nowrap; transition:.15s; }
+.bt-btn:active { transform:scale(.95); }
+.bt-btn.disconnect { background:var(--muted2); }
 
-/* carton cards */
+/* CARTON CARDS */
 .carton-list { display:flex; flex-direction:column; gap:10px; }
+.carton-card { background:var(--card); border:1px solid var(--border); border-radius:12px; overflow:hidden; transition:border-color .2s; }
+.carton-card.expanded { border-color:var(--accent2); }
+.carton-head { display:flex; align-items:center; padding:12px 14px; gap:10px; cursor:pointer; }
+.c-icon { width:36px; height:36px; background:rgba(99,102,241,.15); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+.c-info { flex:1; min-width:0; }
+.c-name { font-size:14px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.c-sub  { font-size:10px; color:var(--muted); font-family:'JetBrains Mono',monospace; margin-top:1px; }
+.c-actions { display:flex; gap:6px; flex-shrink:0; }
+.icon-btn { width:30px; height:30px; background:var(--panel); border:1px solid var(--border); border-radius:7px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:13px; color:var(--muted); transition:all .15s; }
+.icon-btn:hover { color:var(--warn); border-color:var(--warn); }
+.icon-btn.scan-btn { color:var(--ok); border-color:rgba(34,211,160,.3); background:rgba(34,211,160,.08); }
+.chevron { color:var(--muted); font-size:11px; transition:transform .2s; flex-shrink:0; }
+.carton-card.expanded .chevron { transform:rotate(180deg); }
 
-.carton-card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  overflow: hidden;
-  transition: border-color .2s;
-}
-.carton-card.expanded { border-color: var(--accent2); }
+.carton-body { display:none; padding:0 14px 14px; flex-direction:column; gap:6px; }
+.carton-card.expanded .carton-body { display:flex; }
 
-.carton-head {
-  display: flex;
-  align-items: center;
-  padding: 12px 14px;
-  gap: 10px;
-  cursor: pointer;
-}
-.carton-head .c-icon {
-  width: 36px; height: 36px;
-  background: rgba(99,102,241,.15);
-  border-radius: 8px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 18px; flex-shrink:0;
-}
-.carton-head .c-info { flex:1; min-width:0; }
-.carton-head .c-name {
-  font-size: 14px; font-weight: 700;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.carton-head .c-sub {
-  font-size: 10px; color: var(--muted);
-  font-family: 'JetBrains Mono', monospace; margin-top: 1px;
-}
-.carton-head .c-actions { display:flex; gap:6px; flex-shrink:0; }
-.icon-btn {
-  width: 30px; height: 30px;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; font-size: 13px; color: var(--muted);
-  transition: all .15s;
-}
-.icon-btn:hover { color: var(--warn); border-color: var(--warn); }
-.icon-btn.scan-btn { color: var(--ok); border-color: rgba(34,211,160,.3); background: rgba(34,211,160,.08); }
-.icon-btn.scan-btn:hover { background: rgba(34,211,160,.2); }
-.chevron { color: var(--muted); font-size: 11px; transition: transform .2s; flex-shrink:0; }
-.carton-card.expanded .chevron { transform: rotate(180deg); }
+.bc-row { display:flex; align-items:center; gap:8px; }
+.bc-num { width:20px; height:20px; background:var(--muted2); border-radius:4px; font-size:9px; font-family:'JetBrains Mono',monospace; color:var(--muted); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-weight:700; }
+.bc-input { flex:1; background:var(--panel); border:1px solid var(--border); border-radius:7px; padding:7px 10px; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:12px; outline:none; transition:border-color .2s; }
+.bc-input:focus { border-color:var(--accent2); }
+.bc-input::placeholder { color:var(--muted2); }
+.bc-input.bt-filled { border-color:var(--bt); color:var(--bt); animation:flash-fill .4s ease; }
+@keyframes flash-fill { 0%{background:rgba(59,130,246,.3)} 100%{background:var(--panel)} }
+.bc-clear { width:26px; height:26px; background:none; border:none; color:var(--muted2); cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; border-radius:5px; transition:color .15s; flex-shrink:0; }
+.bc-clear:hover { color:var(--warn); }
+.c-name-input { background:none; border:none; outline:none; color:var(--text); font-family:'Syne',sans-serif; font-size:14px; font-weight:700; width:100%; }
 
-.carton-body {
-  display: none;
-  padding: 0 14px 14px;
-  flex-direction: column;
-  gap: 6px;
-}
-.carton-card.expanded .carton-body { display: flex; }
+/* BT active carton indicator on master */
+.bt-active-carton { background:rgba(59,130,246,.08); border:1px solid rgba(59,130,246,.25); border-radius:8px; padding:8px 12px; display:flex; align-items:center; gap:8px; font-size:11px; color:var(--bt); font-family:'JetBrains Mono',monospace; display:none; }
+.bt-active-carton.show { display:flex; }
 
-.bc-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.bc-num {
-  width: 20px; height: 20px;
-  background: var(--muted2);
-  border-radius: 4px;
-  font-size: 9px;
-  font-family: 'JetBrains Mono', monospace;
-  color: var(--muted);
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; font-weight: 700;
-}
-.bc-input {
-  flex: 1;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  padding: 7px 10px;
-  color: var(--text);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  outline: none;
-  transition: border-color .2s;
-}
-.bc-input:focus { border-color: var(--accent2); }
-.bc-input::placeholder { color: var(--muted2); }
+.add-carton-btn { background:none; border:1.5px dashed var(--border); border-radius:12px; padding:14px; color:var(--muted); font-family:'Syne',sans-serif; font-size:13px; font-weight:700; cursor:pointer; text-align:center; letter-spacing:.04em; transition:all .2s; }
+.add-carton-btn:hover { border-color:var(--accent2); color:var(--accent2); background:rgba(99,102,241,.05); }
 
-.bc-clear {
-  width: 26px; height: 26px;
-  background: none; border: none;
-  color: var(--muted2);
-  cursor: pointer; font-size: 14px;
-  display: flex; align-items: center; justify-content: center;
-  border-radius: 5px; transition: color .15s;
-  flex-shrink: 0;
-}
-.bc-clear:hover { color: var(--warn); }
+/* INPUT MODE TOGGLE */
+.mode-toggle { display:flex; gap:6px; background:var(--panel); border-radius:10px; padding:5px; border:1px solid var(--border); }
+.mode-btn { flex:1; padding:7px 8px; border-radius:7px; font-family:'Syne',sans-serif; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; cursor:pointer; border:none; background:none; color:var(--muted); transition:all .2s; text-align:center; }
+.mode-btn.active { background:var(--accent2); color:#fff; }
 
-/* add carton btn */
-.add-carton-btn {
-  background: none;
-  border: 1.5px dashed var(--border);
-  border-radius: 12px;
-  padding: 14px;
-  color: var(--muted);
-  font-family: 'Syne', sans-serif;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  text-align: center;
-  letter-spacing: .04em;
-  transition: all .2s;
-}
-.add-carton-btn:hover { border-color: var(--accent2); color: var(--accent2); background: rgba(99,102,241,.05); }
+/* SCAN PAGE */
+.scan-select-bar { background:var(--panel); border-bottom:1px solid var(--border); padding:8px 14px; display:flex; align-items:center; gap:10px; flex-shrink:0; }
+.scan-select-bar label { font-size:10px; font-family:'JetBrains Mono',monospace; color:var(--muted); text-transform:uppercase; white-space:nowrap; }
+.carton-select { flex:1; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:7px 10px; color:var(--text); font-family:'Syne',sans-serif; font-size:13px; font-weight:700; outline:none; cursor:pointer; }
 
-/* carton name edit inline */
-.c-name-input {
-  background: none;
-  border: none;
-  outline: none;
-  color: var(--text);
-  font-family: 'Syne', sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  width: 100%;
-}
+/* BT scan mode panel */
+.bt-scan-panel { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; background:var(--surface); padding:24px; text-align:center; }
+.bt-scan-icon { width:80px; height:80px; border-radius:20px; background:rgba(59,130,246,.1); border:2px solid rgba(59,130,246,.3); display:flex; align-items:center; justify-content:center; font-size:36px; }
+.bt-scan-icon.active { border-color:var(--bt); box-shadow:0 0 20px rgba(59,130,246,.25); animation:pulse-icon 1.5s ease infinite; }
+@keyframes pulse-icon { 0%,100%{box-shadow:0 0 20px rgba(59,130,246,.2)} 50%{box-shadow:0 0 35px rgba(59,130,246,.5)} }
+.bt-scan-title { font-size:16px; font-weight:800; color:var(--text); }
+.bt-scan-sub   { font-size:12px; color:var(--muted); line-height:1.6; }
+.bt-last-scan  { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:10px 16px; width:100%; max-width:320px; }
+.bt-last-scan .lbl { font-size:9px; font-family:'JetBrains Mono',monospace; color:var(--muted); text-transform:uppercase; margin-bottom:4px; }
+.bt-last-scan .val { font-family:'JetBrains Mono',monospace; font-size:18px; font-weight:700; color:var(--text); letter-spacing:.1em; min-height:26px; }
 
-/* ── SCAN PAGE ── */
-.scan-select-bar {
-  background: var(--panel);
-  border-bottom: 1px solid var(--border);
-  padding: 10px 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-}
-.scan-select-bar label {
-  font-size: 10px; font-family:'JetBrains Mono',monospace;
-  color: var(--muted); text-transform: uppercase; white-space: nowrap;
-}
-.carton-select {
-  flex: 1;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 7px 10px;
-  color: var(--text);
-  font-family: 'Syne', sans-serif;
-  font-size: 13px;
-  font-weight: 700;
-  outline: none;
-  cursor: pointer;
-}
-
-.scanner-wrap {
-  position: relative;
-  flex: 1;
-  overflow: hidden;
-  background: #000;
-}
+/* camera scanner */
+.scanner-wrap { position:relative; flex:1; overflow:hidden; background:#000; }
 #interactive { position:absolute; inset:0; width:100%; height:100%; }
 #interactive video { width:100%; height:100%; object-fit:cover; display:block; }
 #interactive canvas { display:none; }
 
-.overlay {
-  position: absolute; inset: 0;
-  pointer-events: none;
-  display: flex; align-items: center; justify-content: center;
-}
-.scan-zone {
-  position: relative;
-  width: min(85vw, 340px);
-  height: 120px;
-}
-.scan-zone::before,.scan-zone::after,.sz-bl,.sz-br {
-  content:''; position:absolute; width:28px; height:28px;
-  border-color:var(--accent); border-style:solid;
-}
+.overlay { position:absolute; inset:0; pointer-events:none; display:flex; align-items:center; justify-content:center; }
+.scan-zone { position:relative; width:min(85vw,340px); height:120px; }
+.scan-zone::before,.scan-zone::after,.sz-bl,.sz-br { content:''; position:absolute; width:28px; height:28px; border-color:var(--accent); border-style:solid; }
 .scan-zone::before { top:0; left:0; border-width:3px 0 0 3px; }
 .scan-zone::after  { top:0; right:0; border-width:3px 3px 0 0; }
 .sz-bl { bottom:0; left:0; border-width:0 0 3px 3px; }
 .sz-br { bottom:0; right:0; border-width:0 3px 3px 0; }
-.scan-line {
-  position:absolute; left:4px; right:4px; height:2px;
-  background:linear-gradient(90deg,transparent,var(--accent),transparent);
-  animation: scanline 2s ease-in-out infinite;
-  box-shadow: 0 0 8px var(--accent);
-}
-@keyframes scanline {
-  0%   { top:8px; opacity:0; }
-  10%  { opacity:1; }
-  90%  { opacity:1; }
-  100% { top:calc(100% - 8px); opacity:0; }
-}
-.scan-hint {
-  position:absolute; bottom:-26px; left:50%; transform:translateX(-50%);
-  font-size:10px; color:rgba(255,255,255,.4); white-space:nowrap;
-  font-family:'JetBrains Mono',monospace;
-}
+.scan-line { position:absolute; left:4px; right:4px; height:2px; background:linear-gradient(90deg,transparent,var(--accent),transparent); animation:scanline 2s ease-in-out infinite; box-shadow:0 0 8px var(--accent); }
+@keyframes scanline { 0%{top:8px;opacity:0} 10%{opacity:1} 90%{opacity:1} 100%{top:calc(100% - 8px);opacity:0} }
+.scan-hint { position:absolute; bottom:-26px; left:50%; transform:translateX(-50%); font-size:10px; color:rgba(255,255,255,.4); white-space:nowrap; font-family:'JetBrains Mono',monospace; }
 
-/* Carton barcodes list overlay — top strip */
-.carton-strip {
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  background: linear-gradient(180deg, rgba(8,11,16,.95) 70%, transparent);
-  padding: 10px 12px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  pointer-events: none;
-}
-.strip-title {
-  font-size: 10px; font-family:'JetBrains Mono',monospace;
-  color: var(--muted); text-transform:uppercase; letter-spacing:.08em;
-  margin-bottom: 2px;
-}
-.bc-chips {
-  display: flex; flex-wrap: wrap; gap: 5px;
-}
-.bc-chip {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 3px 8px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  color: var(--muted);
-  letter-spacing: .05em;
-  transition: all .3s;
-}
-.bc-chip.scanned  { background: rgba(34,211,160,.15); border-color: var(--ok); color: var(--ok); }
-.bc-chip.error    { background: rgba(244,63,94,.15); border-color: var(--warn); color: var(--warn); }
+.carton-strip { position:absolute; top:0; left:0; right:0; background:linear-gradient(180deg,rgba(8,11,16,.95) 70%,transparent); padding:10px 12px 20px; display:flex; flex-direction:column; gap:6px; pointer-events:none; }
+.strip-title { font-size:10px; font-family:'JetBrains Mono',monospace; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin-bottom:2px; }
+.bc-chips { display:flex; flex-wrap:wrap; gap:5px; }
+.bc-chip { background:var(--card); border:1px solid var(--border); border-radius:6px; padding:3px 8px; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--muted); letter-spacing:.05em; transition:all .3s; }
+.bc-chip.scanned { background:rgba(34,211,160,.15); border-color:var(--ok); color:var(--ok); }
+.bc-chip.error   { background:rgba(244,63,94,.15); border-color:var(--warn); color:var(--warn); }
 
-/* idle screen */
-.idle-screen {
-  position:absolute; inset:0;
-  display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:16px; background:var(--surface);
-}
-.idle-icon {
-  width:72px; height:72px;
-  border:2px solid var(--border); border-radius:16px;
-  display:flex; align-items:center; justify-content:center;
-}
+.idle-screen { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; background:var(--surface); }
+.idle-icon { width:72px; height:72px; border:2px solid var(--border); border-radius:16px; display:flex; align-items:center; justify-content:center; }
 .idle-screen p { color:var(--muted); font-size:13px; }
-.btn-start {
-  background:var(--accent2); color:#fff; border:none;
-  border-radius:10px; padding:12px 28px;
-  font-family:'Syne',sans-serif; font-size:14px; font-weight:700;
-  letter-spacing:.05em; cursor:pointer; text-transform:uppercase;
-  transition:.15s;
-}
+.btn-start { background:var(--accent2); color:#fff; border:none; border-radius:10px; padding:12px 28px; font-family:'Syne',sans-serif; font-size:14px; font-weight:700; letter-spacing:.05em; cursor:pointer; text-transform:uppercase; transition:.15s; }
 .btn-start:active { transform:scale(.96); }
 
-/* result bottom panel */
-.result-panel {
-  background: var(--surface);
-  border-top: 1px solid var(--border);
-  padding: 12px 14px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  transition: border-color .3s;
-  min-height: 110px;
-}
-.result-panel.ok   { border-top-color: var(--ok); }
-.result-panel.fail { border-top-color: var(--warn); }
-
+.result-panel { background:var(--surface); border-top:1px solid var(--border); padding:12px 14px; flex-shrink:0; display:flex; flex-direction:column; gap:8px; transition:border-color .3s; min-height:90px; }
+.result-panel.ok   { border-top-color:var(--ok); }
+.result-panel.fail { border-top-color:var(--warn); }
 .result-row { display:flex; align-items:center; justify-content:space-between; }
 .result-label { font-size:10px; font-family:'JetBrains Mono',monospace; color:var(--muted); text-transform:uppercase; }
-.status-badge {
-  font-size:11px; font-family:'JetBrains Mono',monospace; font-weight:700;
-  padding:3px 10px; border-radius:20px; opacity:0; transition:opacity .3s;
-}
+.status-badge { font-size:11px; font-family:'JetBrains Mono',monospace; font-weight:700; padding:3px 10px; border-radius:20px; opacity:0; transition:opacity .3s; }
 .status-badge.visible { opacity:1; }
 .status-badge.ok   { background:rgba(34,211,160,.12); color:var(--ok);  border:1px solid rgba(34,211,160,.3); }
 .status-badge.fail { background:rgba(244,63,94,.12);  color:var(--warn); border:1px solid rgba(244,63,94,.3); }
-.barcode-value {
-  font-family:'JetBrains Mono',monospace; font-size:20px; font-weight:700;
-  letter-spacing:.16em; min-height:30px; display:flex; align-items:center;
-  flex-wrap:wrap; gap:2px; word-break:break-all;
-}
+.barcode-value { font-family:'JetBrains Mono',monospace; font-size:20px; font-weight:700; letter-spacing:.16em; min-height:28px; display:flex; align-items:center; flex-wrap:wrap; gap:2px; word-break:break-all; }
 
-/* scan controls */
-.scan-controls {
-  background: var(--surface);
-  border-top: 1px solid var(--border);
-  padding: 10px 14px 14px;
-  display: flex; gap: 8px; flex-shrink: 0;
-}
-.btn {
-  flex:1; border-radius:10px; padding:10px;
-  font-family:'Syne',sans-serif; font-size:13px; font-weight:700;
-  letter-spacing:.04em; cursor:pointer; border:1px solid var(--border);
-  text-transform:uppercase; transition:all .15s;
-}
+.scan-controls { background:var(--surface); border-top:1px solid var(--border); padding:10px 14px 14px; display:flex; gap:8px; flex-shrink:0; }
+.btn { flex:1; border-radius:10px; padding:10px; font-family:'Syne',sans-serif; font-size:13px; font-weight:700; letter-spacing:.04em; cursor:pointer; border:1px solid var(--border); text-transform:uppercase; transition:all .15s; }
 .btn:active { transform:scale(.96); }
 .btn-primary { background:var(--accent2); color:#fff; border-color:var(--accent2); }
+.btn-bt      { background:var(--bt); color:#fff; border-color:var(--bt); }
 .btn-ghost   { background:transparent; color:var(--muted); }
 
-/* ── DANGER OVERLAY ── */
-.danger-overlay {
-  position:fixed; inset:0; z-index:999;
-  display:flex; align-items:flex-end; padding:20px;
-  pointer-events:none; opacity:0; transition:opacity .3s;
-  background: rgba(244,63,94,.04);
-}
-.danger-overlay.show { opacity:1; pointer-events:all; }
-.danger-box {
-  width:100%; background:#180810;
-  border:1.5px solid var(--warn); border-radius:14px;
-  padding:16px 18px; box-shadow:0 0 50px rgba(244,63,94,.3);
-  transform:translateY(20px); transition:transform .3s;
-  display:flex; flex-direction:column; gap:10px;
-}
-.danger-overlay.show .danger-box { transform:translateY(0); }
-.danger-title {
-  font-size:15px; font-weight:800; color:var(--warn);
-  display:flex; align-items:center; gap:8px; text-transform:uppercase;
-  animation: flash-title 0.6s ease infinite alternate;
-}
-@keyframes flash-title { from{opacity:1} to{opacity:.6} }
-.danger-body {
-  font-size:12px; color:rgba(255,255,255,.7);
-  font-family:'JetBrains Mono',monospace; line-height:1.7;
-}
-.danger-body strong { color:var(--warn); font-weight:700; }
-.danger-dismiss {
-  align-self:flex-end; background:var(--warn); color:#fff;
-  border:none; border-radius:8px; padding:8px 20px;
-  font-family:'Syne',sans-serif; font-size:13px; font-weight:700;
-  cursor:pointer; pointer-events:all;
-}
-
-/* ── NO CARTON MSG ── */
-.no-carton-msg {
-  position:absolute; inset:0; background:var(--surface);
-  display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:12px; text-align:center; padding:30px;
-}
+/* no carton */
+.no-carton-msg { position:absolute; inset:0; background:var(--surface); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; text-align:center; padding:30px; }
 .no-carton-msg .emoji { font-size:48px; }
 .no-carton-msg p { color:var(--muted); font-size:13px; line-height:1.6; }
-.no-carton-msg button {
-  background:var(--accent2); color:#fff; border:none;
-  border-radius:10px; padding:10px 24px;
-  font-family:'Syne',sans-serif; font-size:13px; font-weight:700;
-  cursor:pointer; letter-spacing:.04em; text-transform:uppercase;
-}
+.no-carton-msg button { background:var(--accent2); color:#fff; border:none; border-radius:10px; padding:10px 24px; font-family:'Syne',sans-serif; font-size:13px; font-weight:700; cursor:pointer; letter-spacing:.04em; text-transform:uppercase; }
 
-/* scrollbar */
+/* DANGER OVERLAY */
+.danger-overlay { position:fixed; inset:0; z-index:999; display:flex; align-items:flex-end; padding:20px; pointer-events:none; opacity:0; transition:opacity .3s; background:rgba(244,63,94,.04); }
+.danger-overlay.show { opacity:1; pointer-events:all; }
+.danger-box { width:100%; background:#180810; border:1.5px solid var(--warn); border-radius:14px; padding:16px 18px; box-shadow:0 0 50px rgba(244,63,94,.3); transform:translateY(20px); transition:transform .3s; display:flex; flex-direction:column; gap:10px; }
+.danger-overlay.show .danger-box { transform:translateY(0); }
+.danger-title { font-size:15px; font-weight:800; color:var(--warn); display:flex; align-items:center; gap:8px; text-transform:uppercase; animation:flash-title .6s ease infinite alternate; }
+@keyframes flash-title { from{opacity:1} to{opacity:.6} }
+.danger-body { font-size:12px; color:rgba(255,255,255,.7); font-family:'JetBrains Mono',monospace; line-height:1.7; }
+.danger-body strong { color:var(--warn); font-weight:700; }
+.danger-dismiss { align-self:flex-end; background:var(--warn); color:#fff; border:none; border-radius:8px; padding:8px 20px; font-family:'Syne',sans-serif; font-size:13px; font-weight:700; cursor:pointer; pointer-events:all; }
+
 ::-webkit-scrollbar { width:4px; }
 ::-webkit-scrollbar-track { background:transparent; }
 ::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
@@ -443,19 +188,41 @@ body {
 </head>
 <body>
 
-<!-- ═══════════════════════════════════════
-     PAGE 1: MASTER (Carton Setup)
-═══════════════════════════════════════ -->
+<!-- ═══════════════════════════════════════════
+     PAGE 1: MASTER
+═══════════════════════════════════════════ -->
 <div class="page active" id="pageMaster">
   <div class="hdr">
     <div class="hdr-title">
       <h1>📦 ATTPL Scan</h1>
       <p>Configure cartons &amp; barcodes</p>
     </div>
+    <div class="hdr-ver">v1</div>
     <div class="icon-btn scan-btn" onclick="goToScan()" title="Go to Scanner">▶ Scan</div>
   </div>
 
   <div class="master-body">
+
+    <!-- Bluetooth status -->
+    <div>
+      <div class="section-label">Bluetooth Scanner</div>
+      <div class="bt-bar">
+        <div class="bt-dot" id="masterBtDot"></div>
+        <div class="bt-info">
+          <div class="bt-title" id="masterBtTitle">Not connected</div>
+          <div class="bt-sub"  id="masterBtSub">Pair a Bluetooth barcode scanner</div>
+        </div>
+        <button class="bt-btn" id="masterBtBtn" onclick="toggleBluetooth()">Connect</button>
+      </div>
+    </div>
+
+    <!-- BT active carton info (shown when BT scanning into a carton) -->
+    <div class="bt-active-carton" id="btActiveCartonBar">
+      <span>🔵</span>
+      <span id="btActiveCartonLabel">Scanning into: —</span>
+    </div>
+
+    <!-- Cartons -->
     <div>
       <div class="section-label">Cartons</div>
       <div class="carton-list" id="cartonList"></div>
@@ -464,9 +231,9 @@ body {
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════
+<!-- ═══════════════════════════════════════════
      PAGE 2: SCANNER
-═══════════════════════════════════════ -->
+═══════════════════════════════════════════ -->
 <div class="page" id="pageScan">
   <div class="hdr">
     <div class="hdr-back" onclick="goToMaster()">←</div>
@@ -474,6 +241,7 @@ body {
       <h1>📷 ATTPL Scan</h1>
       <p id="scanPageSub">Select a carton to begin</p>
     </div>
+    <div class="hdr-ver">v1</div>
   </div>
 
   <div class="scan-select-bar">
@@ -483,109 +251,395 @@ body {
     </select>
   </div>
 
-  <div class="scanner-wrap" id="scannerWrap">
-    <div id="interactive"></div>
-
-    <!-- barcode chips overlay -->
-    <div class="carton-strip" id="cartonStrip" style="display:none">
-      <div class="strip-title" id="stripCartonName"></div>
-      <div class="bc-chips" id="bcChips"></div>
-    </div>
-
-    <!-- scan frame -->
-    <div class="overlay" id="overlayFrame" style="display:none">
-      <div class="scan-zone">
-        <div class="sz-bl"></div><div class="sz-br"></div>
-        <div class="scan-line"></div>
-        <div class="scan-hint">Align barcode within frame</div>
-      </div>
-    </div>
-
-    <!-- idle -->
-    <div class="idle-screen" id="idleScreen">
-      <div class="idle-icon">
-        <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
-          <rect x="3" y="8" width="4" height="20" rx="2" fill="#556070"/>
-          <rect x="9" y="8" width="2" height="20" rx="1" fill="#556070"/>
-          <rect x="13" y="8" width="3" height="20" rx="1.5" fill="#556070"/>
-          <rect x="18" y="8" width="2" height="20" rx="1" fill="#556070"/>
-          <rect x="22" y="8" width="4" height="20" rx="2" fill="#556070"/>
-          <rect x="28" y="8" width="3" height="20" rx="1.5" fill="#556070"/>
-        </svg>
-      </div>
-      <p id="idleMsg">Select a carton above, then start camera</p>
-      <button class="btn-start" id="btnIdleStart" onclick="startScanner()">Start Camera</button>
-    </div>
-
-    <!-- no carton selected -->
-    <div class="no-carton-msg" id="noCartonMsg" style="display:none">
-      <div class="emoji">📦</div>
-      <p>No cartons configured yet.<br>Go to the master page and add cartons with their expected barcodes.</p>
-      <button onclick="goToMaster()">Setup Cartons</button>
+  <!-- Input mode toggle -->
+  <div style="padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0;">
+    <div class="mode-toggle">
+      <div class="mode-btn active" id="modeBtnCamera" onclick="setMode('camera')">📷 Camera</div>
+      <div class="mode-btn"        id="modeBtnBT"     onclick="setMode('bt')">🔵 Bluetooth</div>
     </div>
   </div>
 
-  <div class="result-panel" id="resultPanel">
-    <div class="result-row">
-      <div class="result-label">Last Scan</div>
-      <div class="status-badge" id="statusBadge"></div>
+  <!-- CAMERA MODE -->
+  <div id="cameraModeWrap" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+    <div class="scanner-wrap" id="scannerWrap">
+      <div id="interactive"></div>
+      <div class="carton-strip" id="cartonStrip" style="display:none">
+        <div class="strip-title" id="stripCartonName"></div>
+        <div class="bc-chips" id="bcChips"></div>
+      </div>
+      <div class="overlay" id="overlayFrame" style="display:none">
+        <div class="scan-zone">
+          <div class="sz-bl"></div><div class="sz-br"></div>
+          <div class="scan-line"></div>
+          <div class="scan-hint">Align barcode within frame</div>
+        </div>
+      </div>
+      <div class="idle-screen" id="idleScreen">
+        <div class="idle-icon">
+          <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+            <rect x="3" y="8" width="4" height="20" rx="2" fill="#556070"/>
+            <rect x="9" y="8" width="2" height="20" rx="1" fill="#556070"/>
+            <rect x="13" y="8" width="3" height="20" rx="1.5" fill="#556070"/>
+            <rect x="18" y="8" width="2" height="20" rx="1" fill="#556070"/>
+            <rect x="22" y="8" width="4" height="20" rx="2" fill="#556070"/>
+            <rect x="28" y="8" width="3" height="20" rx="1.5" fill="#556070"/>
+          </svg>
+        </div>
+        <p id="idleMsg">Select a carton above, then start camera</p>
+        <button class="btn-start" onclick="startScanner()">Start Camera</button>
+      </div>
+      <div class="no-carton-msg" id="noCartonMsg" style="display:none">
+        <div class="emoji">📦</div>
+        <p>No cartons configured yet.<br>Go to the master page and add cartons.</p>
+        <button onclick="goToMaster()">Setup Cartons</button>
+      </div>
     </div>
-    <div class="barcode-value" id="barcodeValue">
-      <span style="color:var(--muted);font-size:13px">Awaiting scan…</span>
+    <div class="scan-controls">
+      <button class="btn btn-primary" id="btnScan" onclick="startScanner()">Start</button>
+      <button class="btn btn-ghost"   id="btnStop" onclick="stopScanner()" style="display:none">Stop</button>
+      <button class="btn btn-ghost"   onclick="resetScanState()">Reset</button>
     </div>
   </div>
 
-  <div class="scan-controls">
-    <button class="btn btn-primary" id="btnScan"  onclick="startScanner()">Start</button>
-    <button class="btn btn-ghost"   id="btnStop"  onclick="stopScanner()" style="display:none">Stop</button>
-    <button class="btn btn-ghost"   onclick="resetScanState()">Reset</button>
+  <!-- BLUETOOTH MODE -->
+  <div id="btModeWrap" style="flex:1;display:none;flex-direction:column;overflow:hidden;">
+    <div class="bt-scan-panel">
+      <div class="bt-scan-icon" id="btScanIcon">🔵</div>
+      <div class="bt-scan-title" id="btScanTitle">Bluetooth Scanner</div>
+      <div class="bt-scan-sub"   id="btScanSub">Connect a Bluetooth scanner from the master page,<br>then select a carton above.</div>
+      <div class="bt-last-scan" id="btLastScanBox" style="display:none">
+        <div class="lbl">Last Scan</div>
+        <div class="val" id="btLastVal">—</div>
+      </div>
+    </div>
+    <div class="result-panel" id="resultPanelBT">
+      <div class="result-row">
+        <div class="result-label">Status</div>
+        <div class="status-badge" id="statusBadgeBT"></div>
+      </div>
+      <div class="barcode-value" id="barcodeValueBT">
+        <span style="color:var(--muted);font-size:13px">Awaiting scan…</span>
+      </div>
+    </div>
+    <div class="scan-controls">
+      <button class="btn btn-bt" id="btnBTConnect" onclick="toggleBluetooth()">Connect BT</button>
+      <button class="btn btn-ghost" onclick="resetScanState()">Reset</button>
+    </div>
   </div>
 </div>
 
-<!-- ── DANGER ALERT ── -->
+<!-- DANGER ALERT -->
 <div class="danger-overlay" id="dangerOverlay">
   <div class="danger-box">
-    <div class="danger-title">🚨 Wrong Barcode!</div>
-    <div class="danger-body" id="dangerBody"></div>
+    <div class="danger-title" id="dangerTitle">🚨 Wrong Barcode!</div>
+    <div class="danger-body"  id="dangerBody"></div>
     <button class="danger-dismiss" onclick="dismissDanger()">Dismiss</button>
   </div>
 </div>
 
+<!-- Hidden input to capture BT keyboard-wedge input even when no input is focused -->
+<input id="btHiddenInput" style="position:fixed;opacity:0;pointer-events:none;top:0;left:0;width:1px;height:1px;" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+
 <script>
 /* ═══════════════════════════════════════
-   DATA — persisted in localStorage
+   DATA
 ═══════════════════════════════════════ */
-let cartons = [];   // [{id, name, barcodes:[str×8]}]
-
-function saveCartons() {
-  try { localStorage.setItem('cs_cartons', JSON.stringify(cartons)); } catch(e) {}
-}
+let cartons = [];
+function saveCartons() { try { localStorage.setItem('attpl_cartons', JSON.stringify(cartons)); } catch(e){} }
 function loadCartons() {
-  try {
-    const d = localStorage.getItem('cs_cartons');
-    if (d) cartons = JSON.parse(d);
-  } catch(e) {}
+  try { const d = localStorage.getItem('attpl_cartons'); if(d) cartons = JSON.parse(d); } catch(e){}
   if (!cartons.length) addCarton(true);
 }
-
 function makeId() { return '_' + Math.random().toString(36).slice(2,9); }
 
 function addCarton(silent) {
-  const c = { id: makeId(), name: 'Carton ' + (cartons.length + 1), barcodes: Array(8).fill('') };
+  const c = { id:makeId(), name:'Carton '+(cartons.length+1), barcodes:Array(8).fill('') };
   cartons.push(c);
   if (!silent) saveCartons();
   renderCartonList();
   if (!silent) {
-    // expand the new one
     const card = document.querySelector(`.carton-card[data-id="${c.id}"]`);
     if (card) { card.classList.add('expanded'); card.scrollIntoView({behavior:'smooth'}); }
   }
 }
+function deleteCarton(id) { cartons = cartons.filter(c=>c.id!==id); saveCartons(); renderCartonList(); }
 
-function deleteCarton(id) {
-  cartons = cartons.filter(c => c.id !== id);
+/* ═══════════════════════════════════════
+   BLUETOOTH — keyboard-wedge approach
+   BT scanners act as HID keyboards: they
+   type the barcode + Enter into whatever
+   is focused. We keep a hidden input
+   always focused (on the scan page) and
+   also intercept keydown globally for the
+   master page barcode entry.
+═══════════════════════════════════════ */
+let btConnected  = false;   // user has "connected" (armed) BT mode
+let btBuffer     = '';
+let btTimer      = null;
+let btFillCartonId  = null;   // carton being filled via BT on master
+let btFillSlotIdx   = null;   // next empty slot index
+
+const BT_TIMEOUT_MS = 80;   // ms between chars before treating as complete scan
+
+function toggleBluetooth() {
+  if (btConnected) disconnectBT();
+  else             connectBT();
+}
+
+function connectBT() {
+  btConnected = true;
+  updateBTUI();
+  // Focus hidden input so BT scanner types into it (scan page)
+  const hi = document.getElementById('btHiddenInput');
+  if (hi) { hi.value=''; hi.focus(); }
+}
+
+function disconnectBT() {
+  btConnected = false;
+  btFillCartonId = null;
+  btFillSlotIdx  = null;
+  updateBTUI();
+}
+
+function updateBTUI() {
+  // Master page BT bar
+  const dot   = document.getElementById('masterBtDot');
+  const title = document.getElementById('masterBtTitle');
+  const sub   = document.getElementById('masterBtSub');
+  const btn   = document.getElementById('masterBtBtn');
+  if (btConnected) {
+    dot.className   = 'bt-dot connected';
+    title.textContent = 'Bluetooth Scanner Armed';
+    sub.textContent   = 'Keyboard-wedge mode active — scan to fill barcodes';
+    btn.textContent   = 'Disconnect';
+    btn.className     = 'bt-btn disconnect';
+  } else {
+    dot.className     = 'bt-dot';
+    title.textContent = 'Not connected';
+    sub.textContent   = 'Arm the Bluetooth keyboard-wedge scanner';
+    btn.textContent   = 'Connect';
+    btn.className     = 'bt-btn';
+  }
+
+  // Scan page BT connect button
+  const bbtn = document.getElementById('btnBTConnect');
+  if (bbtn) bbtn.textContent = btConnected ? 'Disconnect BT' : 'Connect BT';
+
+  // BT scan panel state
+  updateBTScanPanel();
+}
+
+function updateBTScanPanel() {
+  const icon  = document.getElementById('btScanIcon');
+  const title = document.getElementById('btScanTitle');
+  const sub   = document.getElementById('btScanSub');
+  if (!icon) return;
+  if (btConnected && currentCarton) {
+    icon.className  = 'bt-scan-icon active';
+    title.textContent = 'Ready — Scan Now';
+    sub.textContent   = 'Point your Bluetooth scanner at a barcode';
+    document.getElementById('btLastScanBox').style.display = 'block';
+  } else if (btConnected && !currentCarton) {
+    icon.className  = 'bt-scan-icon';
+    title.textContent = 'Select a Carton';
+    sub.textContent   = 'Choose a carton above to start scanning';
+    document.getElementById('btLastScanBox').style.display = 'none';
+  } else {
+    icon.className  = 'bt-scan-icon';
+    title.textContent = 'Bluetooth Not Armed';
+    sub.textContent   = 'Tap "Connect BT" below to arm the scanner,\nor go to master page to connect.';
+    document.getElementById('btLastScanBox').style.display = 'none';
+  }
+}
+
+// ── BT barcode assembly from keystrokes ──────────────────────────────────────
+// BT scanners send chars rapidly then Enter. We buffer chars and flush on Enter
+// or after a quiet period.
+
+function handleBTChar(char) {
+  if (!btConnected) return;
+  clearTimeout(btTimer);
+  if (char === 'Enter' || char === '\n' || char === '\r') {
+    flushBTBuffer();
+    return;
+  }
+  // ignore non-printable
+  if (char.length !== 1) return;
+  btBuffer += char;
+  // auto-flush after quiet period
+  btTimer = setTimeout(flushBTBuffer, BT_TIMEOUT_MS);
+}
+
+function flushBTBuffer() {
+  clearTimeout(btTimer);
+  const code = btBuffer.trim();
+  btBuffer = '';
+  if (!code || code.length < 3) return;
+
+  const page = document.getElementById('pageMaster').classList.contains('active') ? 'master' : 'scan';
+
+  if (page === 'master') {
+    btFillMaster(code);
+  } else {
+    btHandleScan(code);
+  }
+}
+
+// ── BT fill on MASTER PAGE ────────────────────────────────────────────────────
+// When BT scanner fires on master page, fill the next empty barcode slot
+// of whichever carton card is currently expanded.
+
+function btFillMaster(code) {
+  // Find expanded carton
+  const expanded = document.querySelector('.carton-card.expanded');
+  if (!expanded) {
+    // No card expanded — do nothing (user needs to expand a card first)
+    showToast('Expand a carton card first, then scan to fill a barcode slot.');
+    return;
+  }
+  const id = expanded.dataset.id;
+  const c  = cartons.find(x => x.id === id);
+  if (!c) return;
+
+  // Find next empty slot
+  const idx = c.barcodes.findIndex(b => !b.trim());
+  if (idx === -1) {
+    showToast('All 8 barcode slots are full for ' + c.name);
+    return;
+  }
+
+  c.barcodes[idx] = code;
   saveCartons();
-  renderCartonList();
+
+  // Update the input field visually
+  const inputs = expanded.querySelectorAll('.bc-input');
+  if (inputs[idx]) {
+    inputs[idx].value = code;
+    inputs[idx].classList.add('bt-filled');
+    setTimeout(() => inputs[idx].classList.remove('bt-filled'), 800);
+  }
+  refreshSubLine(id);
+
+  // Show BT active bar
+  const bar = document.getElementById('btActiveCartonBar');
+  document.getElementById('btActiveCartonLabel').textContent =
+    'Scanning into: ' + c.name + ' (slot ' + (idx+1) + ' filled)';
+  bar.classList.add('show');
+
+  playBeep();
+  try { if(navigator.vibrate) navigator.vibrate([60]); } catch(e){}
+}
+
+// ── BT scan on SCAN PAGE ──────────────────────────────────────────────────────
+function btHandleScan(code) {
+  if (!currentCarton) return;
+
+  const now      = Date.now();
+  const lastSeen = scanTimestamps[code] || 0;
+  const elapsed  = now - lastSeen;
+  const wasScanned = scannedSet.has(code);
+
+  if (wasScanned && elapsed < REPEAT_WINDOW_MS) return;   // silent debounce
+
+  const validCodes = currentCarton.barcodes.map(b=>b.trim()).filter(Boolean);
+  const isValid    = validCodes.includes(code);
+
+  // Update BT last scan display
+  const bv = document.getElementById('btLastVal');
+  if (bv) { bv.textContent = code; bv.style.color = isValid ? 'var(--ok)' : 'var(--warn)'; }
+
+  // Update result panel (BT mode uses resultPanelBT)
+  const panel = document.getElementById('resultPanelBT');
+  const badge = document.getElementById('statusBadgeBT');
+  const bval  = document.getElementById('barcodeValueBT');
+  if (panel) panel.className = 'result-panel ' + (isValid ? 'ok' : 'fail');
+  if (badge) { badge.className='status-badge visible '+(isValid?'ok':'fail'); badge.textContent = isValid?'✓ VALID':'✗ UNKNOWN'; }
+  if (bval)  bval.innerHTML = `<span style="color:${isValid?'var(--ok)':'var(--warn)'}">${code}</span>`;
+
+  try { if(navigator.vibrate) navigator.vibrate(isValid ? [80] : [100,50,100,50,100]); } catch(e){}
+
+  if (wasScanned && elapsed >= REPEAT_WINDOW_MS) {
+    playRepeat();
+    showRepeat(code);
+    return;
+  }
+
+  if (isValid) {
+    playBeep();
+    scannedSet.add(code);
+    scanTimestamps[code] = now;
+    markChip(code, true);
+  } else {
+    playDanger();
+    showDanger(code);
+  }
+}
+
+// ── Global keydown listener (captures BT scanner on any page) ─────────────────
+document.addEventListener('keydown', e => {
+  if (!btConnected) return;
+  // If a regular text input other than our hidden input is focused, skip
+  const tag = document.activeElement.tagName;
+  const isOurHidden = document.activeElement.id === 'btHiddenInput';
+  // Let BT fill text fields naturally IF we're on master (bc-input fields)
+  if (tag === 'INPUT' && !isOurHidden && document.getElementById('pageMaster').classList.contains('active')) {
+    // Let it type normally — we'll pick it up via hidden input on scan page
+    // BUT we still intercept Enter to flush
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      flushBTBuffer();
+    } else {
+      btBuffer += e.key.length === 1 ? e.key : '';
+      clearTimeout(btTimer);
+      btTimer = setTimeout(flushBTBuffer, BT_TIMEOUT_MS);
+    }
+    return;
+  }
+  if (e.key === 'Enter') { e.preventDefault(); flushBTBuffer(); return; }
+  btBuffer += e.key.length === 1 ? e.key : '';
+  clearTimeout(btTimer);
+  btTimer = setTimeout(flushBTBuffer, BT_TIMEOUT_MS);
+});
+
+// Hidden input events (belt + suspenders for scan page)
+const btHidden = document.getElementById('btHiddenInput');
+btHidden.addEventListener('keydown', e => {
+  if (!btConnected) return;
+  if (e.key === 'Enter') { e.preventDefault(); flushBTBuffer(); }
+});
+btHidden.addEventListener('input', e => {
+  if (!btConnected) return;
+  // Some scanners fire input events instead of keydown
+  btBuffer += btHidden.value;
+  btHidden.value = '';
+  clearTimeout(btTimer);
+  btTimer = setTimeout(flushBTBuffer, BT_TIMEOUT_MS);
+});
+
+// Keep hidden input focused on scan page when in BT mode
+document.addEventListener('click', e => {
+  if (scanMode === 'bt' && btConnected) {
+    const hi = document.getElementById('btHiddenInput');
+    if (hi && document.activeElement !== hi) hi.focus();
+  }
+});
+
+/* ═══════════════════════════════════════
+   TOAST
+═══════════════════════════════════════ */
+let toastTimer = null;
+function showToast(msg) {
+  let t = document.getElementById('toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'toast';
+    t.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1e2535;border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-size:12px;color:var(--text);z-index:9999;max-width:90vw;text-align:center;font-family:JetBrains Mono,monospace;transition:opacity .3s;pointer-events:none;';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.style.opacity='0'; }, 3000);
 }
 
 /* ═══════════════════════════════════════
@@ -595,11 +649,11 @@ function renderCartonList() {
   const list = document.getElementById('cartonList');
   list.innerHTML = '';
   if (!cartons.length) {
-    list.innerHTML = '<p style="color:var(--muted);font-size:13px;text-align:center;padding:20px 0">No cartons yet. Add one below.</p>';
+    list.innerHTML = '<p style="color:var(--muted);font-size:13px;text-align:center;padding:20px 0">No cartons yet.</p>';
     return;
   }
   cartons.forEach(c => {
-    const filled = c.barcodes.filter(b => b.trim()).length;
+    const filled = c.barcodes.filter(b=>b.trim()).length;
     const card = document.createElement('div');
     card.className = 'carton-card';
     card.dataset.id = c.id;
@@ -609,17 +663,18 @@ function renderCartonList() {
         <div class="c-info">
           <input class="c-name-input" value="${esc(c.name)}"
             onclick="event.stopPropagation()"
-            oninput="updateName('${c.id}', this.value)"
+            oninput="updateName('${c.id}',this.value)"
             placeholder="Carton name">
           <div class="c-sub">${filled}/8 barcodes set</div>
         </div>
         <div class="c-actions">
-          <div class="icon-btn scan-btn" onclick="event.stopPropagation(); quickScan('${c.id}')" title="Scan this carton">▶</div>
-          <div class="icon-btn" onclick="event.stopPropagation(); deleteCarton('${c.id}')" title="Delete">✕</div>
+          <div class="icon-btn scan-btn" onclick="event.stopPropagation();quickScan('${c.id}')" title="Scan">▶</div>
+          <div class="icon-btn" onclick="event.stopPropagation();deleteCarton('${c.id}')" title="Delete">✕</div>
         </div>
         <div class="chevron">▼</div>
       </div>
       <div class="carton-body" id="body_${c.id}">
+        ${btConnected ? `<div style="font-size:10px;color:var(--bt);font-family:JetBrains Mono,monospace;padding:4px 0 6px;opacity:.8">🔵 Expand this card and scan — barcodes will auto-fill</div>` : ''}
         ${c.barcodes.map((b,i) => `
           <div class="bc-row">
             <div class="bc-num">${i+1}</div>
@@ -634,33 +689,23 @@ function renderCartonList() {
 }
 
 function toggleCard(id) {
+  document.querySelectorAll('.carton-card').forEach(c => { if(c.dataset.id!==id) c.classList.remove('expanded'); });
   const card = document.querySelector(`.carton-card[data-id="${id}"]`);
   if (card) card.classList.toggle('expanded');
 }
-
-function updateName(id, val) {
-  const c = cartons.find(x => x.id === id);
-  if (c) { c.name = val; saveCartons(); refreshSubLine(id); }
-}
-function updateBarcode(id, idx, val) {
-  const c = cartons.find(x => x.id === id);
-  if (c) { c.barcodes[idx] = val.trim(); saveCartons(); refreshSubLine(id); }
-}
-function clearBarcode(id, idx) {
-  const c = cartons.find(x => x.id === id);
-  if (c) {
-    c.barcodes[idx] = '';
-    saveCartons();
-    const inp = document.querySelector(`.carton-card[data-id="${id}"] .bc-row:nth-child(${idx+1}) .bc-input`);
-    if (inp) inp.value = '';
-    refreshSubLine(id);
-  }
+function updateName(id,val) { const c=cartons.find(x=>x.id===id); if(c){c.name=val;saveCartons();refreshSubLine(id);} }
+function updateBarcode(id,idx,val) { const c=cartons.find(x=>x.id===id); if(c){c.barcodes[idx]=val.trim();saveCartons();refreshSubLine(id);} }
+function clearBarcode(id,idx) {
+  const c=cartons.find(x=>x.id===id); if(!c) return;
+  c.barcodes[idx]=''; saveCartons();
+  const inp = document.querySelector(`.carton-card[data-id="${id}"] .bc-row:nth-child(${idx+1}) .bc-input`);
+  if(inp) inp.value='';
+  refreshSubLine(id);
 }
 function refreshSubLine(id) {
-  const c = cartons.find(x => x.id === id);
-  if (!c) return;
-  const sub = document.querySelector(`.carton-card[data-id="${id}"] .c-sub`);
-  if (sub) sub.textContent = c.barcodes.filter(b=>b.trim()).length + '/8 barcodes set';
+  const c=cartons.find(x=>x.id===id); if(!c) return;
+  const sub=document.querySelector(`.carton-card[data-id="${id}"] .c-sub`);
+  if(sub) sub.textContent=c.barcodes.filter(b=>b.trim()).length+'/8 barcodes set';
 }
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 
@@ -676,63 +721,80 @@ function goToScan() {
   document.getElementById('pageMaster').classList.remove('active');
   document.getElementById('pageScan').classList.add('active');
   populateCartonSelect();
+  if (btConnected && scanMode==='bt') {
+    setTimeout(() => document.getElementById('btHiddenInput').focus(), 100);
+  }
 }
 function quickScan(id) {
   goToScan();
-  setTimeout(() => {
-    document.getElementById('cartonSelect').value = id;
-    onCartonChange();
-  }, 50);
+  setTimeout(() => { document.getElementById('cartonSelect').value=id; onCartonChange(); }, 50);
 }
 
 /* ═══════════════════════════════════════
-   SCAN PAGE
+   SCAN MODE TOGGLE
 ═══════════════════════════════════════ */
-let scanning = false;
-let lastCode = null;
-let dangerTimeout = null;
-let currentCarton = null;
-let scannedSet = new Set();        // barcodes confirmed OK in this session
-let detectionCounts = {};          // code -> consecutive hit count (false-positive filter)
+let scanMode = 'camera';  // 'camera' | 'bt'
+
+function setMode(mode) {
+  scanMode = mode;
+  document.getElementById('modeBtnCamera').className = 'mode-btn' + (mode==='camera'?' active':'');
+  document.getElementById('modeBtnBT').className     = 'mode-btn' + (mode==='bt'?' active':'');
+  document.getElementById('cameraModeWrap').style.display = mode==='camera' ? 'flex' : 'none';
+  document.getElementById('btModeWrap').style.display     = mode==='bt'     ? 'flex' : 'none';
+
+  if (mode==='camera') {
+    stopScanner();
+  } else {
+    stopScanner();
+    updateBTScanPanel();
+    setTimeout(() => { if(btConnected) document.getElementById('btHiddenInput').focus(); }, 100);
+  }
+}
+
+/* ═══════════════════════════════════════
+   SCAN PAGE STATE
+═══════════════════════════════════════ */
+let scanning       = false;
+let lastCode       = null;
+let dangerTimeout  = null;
+let currentCarton  = null;
+let scannedSet     = new Set();
+let detectionCounts= {};
+let scanTimestamps = {};
+
+const CONFIRM_HITS     = 2;
+const REPEAT_WINDOW_MS = 2000;
 
 function populateCartonSelect() {
-  const sel = document.getElementById('cartonSelect');
+  const sel  = document.getElementById('cartonSelect');
   const prev = sel.value;
   sel.innerHTML = '<option value="">— Select carton —</option>';
   cartons.forEach(c => {
     const opt = document.createElement('option');
-    opt.value = c.id;
-    opt.textContent = c.name;
+    opt.value = c.id; opt.textContent = c.name;
     sel.appendChild(opt);
   });
   if (prev && cartons.find(c=>c.id===prev)) sel.value = prev;
-
-  // show no-carton message if empty
-  document.getElementById('noCartonMsg').style.display = cartons.length ? 'none' : 'flex';
-  document.getElementById('idleScreen').style.display  = cartons.length ? 'flex' : 'none';
+  document.getElementById('noCartonMsg').style.display  = cartons.length ? 'none' : 'flex';
+  document.getElementById('idleScreen').style.display   = cartons.length ? 'flex' : 'none';
 }
 
 function onCartonChange() {
   const id = document.getElementById('cartonSelect').value;
-  currentCarton = cartons.find(c => c.id === id) || null;
-  scannedSet.clear();
-  lastCode = null;
-  detectionCounts = {};
-  scanTimestamps = {};
-  stopScanner();
-  resetScanState();
-  renderChips();
-
-  const sub = document.getElementById('scanPageSub');
+  currentCarton = cartons.find(c=>c.id===id) || null;
+  scannedSet.clear(); lastCode=null; detectionCounts={}; scanTimestamps={};
+  stopScanner(); resetScanState(); renderChips();
+  const sub     = document.getElementById('scanPageSub');
   const idleMsg = document.getElementById('idleMsg');
   if (currentCarton) {
     const n = currentCarton.barcodes.filter(b=>b.trim()).length;
-    sub.textContent = currentCarton.name + ' · ' + n + ' barcodes';
+    sub.textContent     = currentCarton.name + ' · ' + n + ' barcodes';
     idleMsg.textContent = 'Ready — tap Start to begin scanning';
   } else {
-    sub.textContent = 'Select a carton to begin';
+    sub.textContent     = 'Select a carton to begin';
     idleMsg.textContent = 'Select a carton above, then start camera';
   }
+  updateBTScanPanel();
 }
 
 function renderChips() {
@@ -742,280 +804,231 @@ function renderChips() {
   if (!currentCarton) { strip.style.display='none'; return; }
   const bcs = currentCarton.barcodes.filter(b=>b.trim());
   if (!bcs.length) { strip.style.display='none'; return; }
-  strip.style.display = 'flex';
+  strip.style.display='flex';
   name.textContent = currentCarton.name;
   chips.innerHTML = bcs.map(b => {
     const cls = scannedSet.has(b) ? 'scanned' : '';
     return `<div class="bc-chip ${cls}" id="chip_${b.replace(/\W/g,'_')}">${b}</div>`;
   }).join('');
 }
-
 function markChip(barcode, ok) {
-  const key = 'chip_' + barcode.replace(/\W/g,'_');
-  const el  = document.getElementById(key);
-  if (el) { el.className = 'bc-chip ' + (ok ? 'scanned' : 'error'); }
+  const el = document.getElementById('chip_'+barcode.replace(/\W/g,'_'));
+  if (el) el.className = 'bc-chip '+(ok?'scanned':'error');
 }
 
 /* ═══════════════════════════════════════
    SOUND ENGINE
-   Strategy: one shared AudioContext, kept alive via a recurring
-   silent-buffer heartbeat so iOS never suspends it mid-session.
 ═══════════════════════════════════════ */
-let audioCtx = null;
+let audioCtx     = null;
 let heartbeatTimer = null;
 
 function getAudio() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   return audioCtx;
 }
-
 function playSilentBuffer() {
-  try {
-    const ctx = getAudio();
-    const buf = ctx.createBuffer(1, 1, 22050);
-    const src = ctx.createBufferSource();
-    src.buffer = buf; src.connect(ctx.destination); src.start(0);
-  } catch(e) {}
+  try { const ctx=getAudio(); const b=ctx.createBuffer(1,1,22050); const s=ctx.createBufferSource(); s.buffer=b; s.connect(ctx.destination); s.start(0); } catch(e){}
 }
-
 async function ensureAudio() {
-  try {
-    const ctx = getAudio();
-    if (ctx.state === 'suspended') await ctx.resume();
-    playSilentBuffer();
-  } catch(e) {}
+  try { const ctx=getAudio(); if(ctx.state==='suspended') await ctx.resume(); playSilentBuffer(); } catch(e){}
 }
+function startAudioHeartbeat() { stopAudioHeartbeat(); heartbeatTimer=setInterval(playSilentBuffer,4000); }
+function stopAudioHeartbeat()  { if(heartbeatTimer){clearInterval(heartbeatTimer);heartbeatTimer=null;} }
 
-// Heartbeat: play silent buffer every 4s to keep context alive
-function startAudioHeartbeat() {
-  stopAudioHeartbeat();
-  heartbeatTimer = setInterval(playSilentBuffer, 4000);
-}
-function stopAudioHeartbeat() {
-  if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
-}
-
-// Unlock on any user gesture
 document.addEventListener('touchstart', ensureAudio);
 document.addEventListener('click',      ensureAudio);
 
 async function playBeep() {
   try {
-    await ensureAudio();
-    const ctx = getAudio();
-    // Double-beep: feels like a successful scanner
-    [0, 0.13].forEach(offset => {
-      const osc  = ctx.createOscillator();
-      const gain = ctx.createGain();
+    await ensureAudio(); const ctx=getAudio();
+    [0,0.13].forEach(offset => {
+      const osc=ctx.createOscillator(), gain=ctx.createGain();
       osc.connect(gain); gain.connect(ctx.destination);
-      osc.type = 'sine';
-      const t = ctx.currentTime + offset;
-      osc.frequency.setValueAtTime(1047, t);
-      gain.gain.setValueAtTime(0.6, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
-      osc.start(t); osc.stop(t + 0.11);
+      osc.type='sine';
+      const t=ctx.currentTime+offset;
+      osc.frequency.setValueAtTime(1047,t);
+      gain.gain.setValueAtTime(0.6,t);
+      gain.gain.exponentialRampToValueAtTime(0.001,t+0.1);
+      osc.start(t); osc.stop(t+0.11);
     });
-  } catch(e) { console.warn('playBeep', e); }
+  } catch(e){}
 }
-
 async function playRepeat() {
-  // Amber warning tone — gentler than danger
   try {
-    await ensureAudio();
-    const ctx = getAudio();
-    const osc  = ctx.createOscillator();
-    const gain = ctx.createGain();
+    await ensureAudio(); const ctx=getAudio();
+    const osc=ctx.createOscillator(), gain=ctx.createGain();
     osc.connect(gain); gain.connect(ctx.destination);
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(600, ctx.currentTime);
-    osc.frequency.linearRampToValueAtTime(400, ctx.currentTime + 0.3);
-    gain.gain.setValueAtTime(0.5, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
-    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.36);
-  } catch(e) { console.warn('playRepeat', e); }
+    osc.type='triangle';
+    osc.frequency.setValueAtTime(600,ctx.currentTime);
+    osc.frequency.linearRampToValueAtTime(400,ctx.currentTime+0.3);
+    gain.gain.setValueAtTime(0.5,ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.35);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime+0.36);
+  } catch(e){}
 }
-
 async function playDanger() {
   try {
-    await ensureAudio();
-    const ctx = getAudio();
-    // Three harsh descending tones
-    [0, 0.22, 0.44].forEach((offset, i) => {
-      const osc  = ctx.createOscillator();
-      const gain = ctx.createGain();
-      const dist = ctx.createWaveShaper();
-      const curve = new Float32Array(512);
-      for (let k = 0; k < 512; k++) {
-        const x = k * 2 / 512 - 1;
-        curve[k] = Math.sign(x) * Math.pow(Math.abs(x), 0.35);
-      }
-      dist.curve = curve;
+    await ensureAudio(); const ctx=getAudio();
+    [0,0.22,0.44].forEach((offset,i) => {
+      const osc=ctx.createOscillator(), gain=ctx.createGain(), dist=ctx.createWaveShaper();
+      const curve=new Float32Array(512);
+      for(let k=0;k<512;k++){const x=k*2/512-1; curve[k]=Math.sign(x)*Math.pow(Math.abs(x),0.35);}
+      dist.curve=curve;
       osc.connect(dist); dist.connect(gain); gain.connect(ctx.destination);
-      osc.type = 'sawtooth';
-      const t = ctx.currentTime + offset;
-      osc.frequency.setValueAtTime([520,400,300][i], t);
-      gain.gain.setValueAtTime(0.5, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
-      osc.start(t); osc.stop(t + 0.2);
+      osc.type='sawtooth';
+      const t=ctx.currentTime+offset;
+      osc.frequency.setValueAtTime([520,400,300][i],t);
+      gain.gain.setValueAtTime(0.5,t);
+      gain.gain.exponentialRampToValueAtTime(0.001,t+0.18);
+      osc.start(t); osc.stop(t+0.2);
     });
-  } catch(e) { console.warn('playDanger', e); }
+  } catch(e){}
 }
 
 /* ═══════════════════════════════════════
-   QUAGGA SCANNER
+   CAMERA SCANNER (Quagga)
 ═══════════════════════════════════════ */
 function startScanner() {
   if (scanning) return;
   if (!currentCarton) { alert('Please select a carton first.'); return; }
-
-  ensureAudio();   // unlock audio on this user gesture
-  startAudioHeartbeat();
-
+  ensureAudio(); startAudioHeartbeat();
   Quagga.init({
     inputStream: {
-      name: 'Live', type: 'LiveStream',
+      name:'Live', type:'LiveStream',
       target: document.querySelector('#interactive'),
-      constraints: { facingMode:'environment', width:{ideal:1280}, height:{ideal:720} },
-      area: { top:'25%', right:'15%', bottom:'25%', left:'15%' }
+      constraints:{facingMode:'environment', width:{ideal:1280}, height:{ideal:720}},
+      area:{top:'25%',right:'15%',bottom:'25%',left:'15%'}
     },
-    decoder: {
-      readers: [
-        { format:'ean_reader',     config:{ supplements:[] } },
-        { format:'ean_8_reader',   config:{ supplements:[] } },
-        { format:'upc_reader',     config:{ supplements:[] } },
-        { format:'upc_e_reader',   config:{ supplements:[] } },
-        { format:'code_128_reader',config:{} }
+    decoder:{
+      readers:[
+        {format:'ean_reader',     config:{supplements:[]}},
+        {format:'ean_8_reader',   config:{supplements:[]}},
+        {format:'upc_reader',     config:{supplements:[]}},
+        {format:'upc_e_reader',   config:{supplements:[]}},
+        {format:'code_128_reader',config:{}}
       ]
     },
-    locate: true,
-    frequency: 10   // back to 10fps — fast detection; noise filtered by hit counter below
+    locate:true, frequency:10
   }, err => {
-    if (err) { alert('Camera error: ' + err.message + '\n\nEnsure camera permission is granted and you are on HTTPS.'); return; }
-    Quagga.start();
-    scanning = true;
-    document.getElementById('idleScreen').style.display = 'none';
-    document.getElementById('overlayFrame').style.display = 'flex';
-    document.getElementById('btnScan').style.display = 'none';
-    document.getElementById('btnStop').style.display = '';
+    if (err) { alert('Camera error: '+err.message+'\n\nEnsure camera permission is granted and you are on HTTPS.'); return; }
+    Quagga.start(); scanning=true;
+    document.getElementById('idleScreen').style.display='none';
+    document.getElementById('overlayFrame').style.display='flex';
+    document.getElementById('btnScan').style.display='none';
+    document.getElementById('btnStop').style.display='';
     renderChips();
   });
-  Quagga.onDetected(onDetected);
+  Quagga.onDetected(onDetectedCamera);
 }
 
 function stopScanner() {
   if (!scanning) return;
-  try { Quagga.offDetected(onDetected); Quagga.stop(); } catch(e){}
-  scanning = false;
-  stopAudioHeartbeat();
-  document.getElementById('idleScreen').style.display = currentCarton ? 'flex' : 'none';
+  try { Quagga.offDetected(onDetectedCamera); Quagga.stop(); } catch(e){}
+  scanning=false; stopAudioHeartbeat();
+  document.getElementById('idleScreen').style.display  = currentCarton ? 'flex' : 'none';
   document.getElementById('noCartonMsg').style.display = cartons.length ? 'none' : 'flex';
-  document.getElementById('overlayFrame').style.display = 'none';
-  document.getElementById('btnScan').style.display = '';
-  document.getElementById('btnStop').style.display = 'none';
+  document.getElementById('overlayFrame').style.display='none';
+  document.getElementById('btnScan').style.display='';
+  document.getElementById('btnStop').style.display='none';
 }
 
-/* ── Scan logic ──────────────────────────────────────────────────
-   CONFIRM_HITS = 2  : need 2 consecutive reads → fast but noise-free
-   REPEAT_WINDOW_MS  : within this window after a valid scan,
-                       the same barcode is silently ignored (debounce).
-                       After the window expires, scanning it again
-                       shows a REPEAT FOUND warning.
-──────────────────────────────────────────────────────────────────*/
-const CONFIRM_HITS     = 2;
-const REPEAT_WINDOW_MS = 2000;
-
-// scanTimestamps: code -> timestamp of last confirmed valid scan
-let scanTimestamps = {};
-
-function onDetected(data) {
+function onDetectedCamera(data) {
   const code = data.codeResult.code;
   if (!code || !currentCarton) return;
 
-  // ── CONSECUTIVE-HIT FILTER (noise / false-positive guard) ──
+  // consecutive-hit filter
   const prev = Object.keys(detectionCounts)[0];
-  if (prev && prev !== code) detectionCounts = {};
-  detectionCounts[code] = (detectionCounts[code] || 0) + 1;
+  if (prev && prev !== code) detectionCounts={};
+  detectionCounts[code] = (detectionCounts[code]||0)+1;
   if (detectionCounts[code] < CONFIRM_HITS) return;
-  detectionCounts = {};   // confirmed — reset counter
+  detectionCounts={};
 
-  const now       = Date.now();
-  const lastSeen  = scanTimestamps[code] || 0;
-  const elapsed   = now - lastSeen;
+  processCode(code, 'camera');
+}
+
+/* ── Unified code processor (camera + BT scan page share this) ── */
+function processCode(code, source) {
+  if (!currentCarton) return;
+  const now      = Date.now();
+  const lastSeen = scanTimestamps[code] || 0;
+  const elapsed  = now - lastSeen;
   const wasScanned = scannedSet.has(code);
 
-  // ── WITHIN 2-SECOND WINDOW: completely silent ignore ──
   if (wasScanned && elapsed < REPEAT_WINDOW_MS) return;
 
-  const validCodes = currentCarton.barcodes.map(b => b.trim()).filter(Boolean);
+  const validCodes = currentCarton.barcodes.map(b=>b.trim()).filter(Boolean);
   const isValid    = validCodes.includes(code);
 
-  // ── REPEAT AFTER 2 SECONDS: warn ──
+  try { if(navigator.vibrate) navigator.vibrate(isValid ? [80] : [100,50,100,50,100]); } catch(e){}
+
+  // update result panel (camera uses resultPanel, BT uses resultPanelBT)
+  const panelId = source==='bt' ? 'resultPanelBT' : 'resultPanel';
+  const badgeId = source==='bt' ? 'statusBadgeBT' : 'statusBadge';
+  const bvalId  = source==='bt' ? 'barcodeValueBT': 'barcodeValue';
+
+  const panel = document.getElementById(panelId);
+  const badge = document.getElementById(badgeId);
+  const bval  = document.getElementById(bvalId);
+  if (panel) panel.className = 'result-panel '+(isValid?'ok':'fail');
+  if (badge) { badge.className='status-badge visible '+(isValid?'ok':'fail'); badge.textContent=isValid?'✓ VALID':'✗ UNKNOWN'; }
+  if (bval)  bval.innerHTML = `<span style="color:${isValid?'var(--ok)':'var(--warn)'}">${code}</span>`;
+
   if (wasScanned && elapsed >= REPEAT_WINDOW_MS) {
     playRepeat();
-    try { if (navigator.vibrate) navigator.vibrate([60, 40, 60]); } catch(e) {}
     showRepeat(code);
     return;
   }
-
-  // ── NEW SCAN ──
-  try { if (navigator.vibrate) navigator.vibrate(isValid ? [80] : [100,50,100,50,100]); } catch(e) {}
-
-  const panel = document.getElementById('resultPanel');
-  const badge = document.getElementById('statusBadge');
-  const bval  = document.getElementById('barcodeValue');
-  panel.className   = 'result-panel ' + (isValid ? 'ok' : 'fail');
-  badge.className   = 'status-badge visible ' + (isValid ? 'ok' : 'fail');
-  badge.textContent = isValid ? '\u2713 VALID' : '\u2717 UNKNOWN';
-  bval.innerHTML    = `<span style="color:${isValid ? 'var(--ok)' : 'var(--warn)'}">${code}</span>`;
-
   if (isValid) {
     playBeep();
     scannedSet.add(code);
-    scanTimestamps[code] = now;
-    markChip(code, true);
+    scanTimestamps[code]=now;
+    markChip(code,true);
   } else {
     playDanger();
     showDanger(code);
   }
 }
 
+// Wire BT scan page through processCode
+function btHandleScan(code) { processCode(code, 'bt'); }
+
+/* ═══════════════════════════════════════
+   ALERTS
+═══════════════════════════════════════ */
 function showRepeat(code) {
-  const body = document.getElementById('dangerBody');
-  body.innerHTML =
-    `<span style="color:var(--amber)">\u26a0 REPEAT FOUND</span><br>` +
+  document.getElementById('dangerTitle').textContent = '⚠ Repeat Found!';
+  document.getElementById('dangerBody').innerHTML =
     `Barcode <strong>${code}</strong> was already scanned.<br>` +
-    `Please check for duplicate items in carton: <strong>${esc(currentCarton.name)}</strong>`;
+    `Check for duplicate items in: <strong>${esc(currentCarton.name)}</strong>`;
   document.getElementById('dangerOverlay').classList.add('show');
-  clearTimeout(dangerTimeout);
-  dangerTimeout = setTimeout(dismissDanger, 6000);
+  clearTimeout(dangerTimeout); dangerTimeout=setTimeout(dismissDanger,6000);
 }
-
 function showDanger(code) {
-  const body = document.getElementById('dangerBody');
-  body.innerHTML =
+  document.getElementById('dangerTitle').textContent = '🚨 Wrong Barcode!';
+  document.getElementById('dangerBody').innerHTML =
     `Scanned: <strong>${code}</strong><br>` +
-    `This barcode is <strong>NOT</strong> in the expected list for<br>` +
-    `carton: <strong>${esc(currentCarton.name)}</strong>`;
+    `Not in expected list for carton: <strong>${esc(currentCarton.name)}</strong>`;
   document.getElementById('dangerOverlay').classList.add('show');
-  clearTimeout(dangerTimeout);
-  dangerTimeout = setTimeout(dismissDanger, 8000);
+  clearTimeout(dangerTimeout); dangerTimeout=setTimeout(dismissDanger,8000);
 }
-
 function dismissDanger() {
   document.getElementById('dangerOverlay').classList.remove('show');
   clearTimeout(dangerTimeout);
 }
 
 function resetScanState() {
-  scannedSet.clear();
-  lastCode = null;
-  detectionCounts = {};
-  scanTimestamps = {};
-  document.getElementById('resultPanel').className = 'result-panel';
-  document.getElementById('statusBadge').className = 'status-badge';
-  document.getElementById('barcodeValue').innerHTML = '<span style="color:var(--muted);font-size:13px">Awaiting scan…</span>';
-  dismissDanger();
-  renderChips();
+  scannedSet.clear(); lastCode=null; detectionCounts={}; scanTimestamps={};
+  ['resultPanel','resultPanelBT'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.className='result-panel';
+  });
+  ['statusBadge','statusBadgeBT'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.className='status-badge';
+  });
+  ['barcodeValue','barcodeValueBT'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.innerHTML='<span style="color:var(--muted);font-size:13px">Awaiting scan…</span>';
+  });
+  const bv = document.getElementById('btLastVal'); if(bv){bv.textContent='—';bv.style.color='var(--text)';}
+  dismissDanger(); renderChips();
 }
 
 /* ═══════════════════════════════════════
@@ -1023,6 +1036,7 @@ function resetScanState() {
 ═══════════════════════════════════════ */
 loadCartons();
 renderCartonList();
+updateBTUI();
 </script>
 </body>
 </html>
